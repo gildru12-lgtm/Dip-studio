@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        /* מונע מהדף כולו לזוז */
+        body { 
+            margin: 0; padding: 0; 
+            width: 100vw; height: 100vh; 
+            overflow: hidden; 
+            background: #222; 
+        }
+
+        .controls { 
+            position: fixed; top: 0; left: 0; width: 100%; 
+            background: white; padding: 10px; display: flex; gap: 10px; 
+            z-index: 1000; box-shadow: 0 2px 5px #000;
+        }
+
+        /* הקנבס נעול במרכז המסך */
+        #canvas {
+            position: absolute;
+            top: 80px; /* גובה ה-controls */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 297mm; height: 210mm;
+            background-color: white;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            cursor: default;
+        }
+
+        .draggable-item { 
+            position: absolute; 
+            cursor: move; 
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <input type="file" id="bgLoader" accept="image/*"> רקע
+    <select id="textColor"><option value="color-gold">זהב</option><option value="color-black">שחור</option></select>
+    <select id="textFont"><option value="font-normal">רגיל</option><option value="font-formal">רשמי</option><option value="font-hand">יד</option></select>
+    <button onclick="addTextBox()">הוסף טקסט</button>
+    <input type="file" id="logoLoader" accept="image/*"> לוגו
+</div>
+
+<div id="canvas"></div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+
+    document.getElementById('bgLoader').onchange = e => {
+        canvas.style.backgroundImage = `url(${URL.createObjectURL(e.target.files[0])})`;
+    };
+
+    document.getElementById('logoLoader').onchange = e => {
+        createItem(`<img src="${URL.createObjectURL(e.target.files[0])}" style="max-width:150px; pointer-events:none;">`);
+    };
+
+    function addTextBox() {
+        createItem(`
+            <div contenteditable="true" style="font-size:30px; outline:none; min-width:50px;">טקסט חדש</div>
+            <input type="range" min="10" max="100" value="30" oninput="this.previousElementSibling.style.fontSize = this.value + 'px'">
+        `, true);
+    }
+
+    function createItem(html, isText) {
+        const div = document.createElement('div');
+        div.className = 'draggable-item';
+        div.style.left = "20px"; div.style.top = "20px";
+        if(isText) div.className += ` ${document.getElementById('textColor').value} ${document.getElementById('textFont').value}`;
+        div.innerHTML = html;
+        canvas.appendChild(div);
+        
+        div.onmousedown = function(e) {
+            if (e.target.contentEditable === "true" || e.target.tagName === "INPUT") return;
+            
+            let shiftX = e.clientX - div.getBoundingClientRect().left;
+            let shiftY = e.clientY - div.getBoundingClientRect().top;
+            
+            function moveAt(e) {
+                let x = e.clientX - shiftX - canvas.getBoundingClientRect().left;
+                let y = e.clientY - shiftY - canvas.getBoundingClientRect().top;
+                div.style.left = x + 'px';
+                div.style.top = y + 'px';
+            }
+            
+            document.onmousemove = moveAt;
+            document.onmouseup = () => document.onmousemove = null;
+        };
+    }
+</script>
+</body>
+</html>
