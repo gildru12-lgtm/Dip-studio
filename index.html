@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>STIA/DTIA - עורך מגע מלא</title>
+    <style>
+        body { margin: 0; background: #222; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; touch-action: none; }
+        .toolbar { position: sticky; top: 0; width: 100%; background: #000; padding: 15px; display: flex; gap: 10px; justify-content: center; z-index: 1000; color: white; flex-wrap: wrap; }
+        
+        #scroll-container { width: 100vw; height: calc(100vh - 80px); overflow: auto; display: flex; justify-content: center; padding: 20px; touch-action: auto; }
+        #workspace { background: white; position: relative; box-shadow: 0 0 20px black; flex-shrink: 0; background-size: cover; background-position: center; }
+        
+        .item { position: absolute; padding: 5px; cursor: move; touch-action: none; border: 1px solid transparent; }
+        .resizer { width: 25px; height: 25px; background: blue; position: absolute; right: 0; bottom: 0; cursor: se-resize; border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="setCanvasSize(297, 210)">A4 לרוחב</button>
+    <button onclick="setCanvasSize(210, 297)">A4 לאורך</button>
+    <label style="cursor:pointer; background:#444; padding:5px 10px;">הוסף רקע לקנבס
+        <input type="file" id="bgInput" accept="image/*" style="display:none" onchange="loadBackground(event)">
+    </label>
+    <button onclick="addText()">+ טקסט</button>
+    <button onclick="document.getElementById('fileInput').click()">+ לוגו</button>
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <button onclick="window.print()" style="background:green;">הדפס</button>
+</div>
+
+<div id="scroll-container"><div id="workspace" style="width: 297mm; height: 210mm;"></div></div>
+
+<script>
+    const workspace = document.getElementById('workspace');
+
+    function setCanvasSize(w, h) { workspace.style.width = w + 'mm'; workspace.style.height = h + 'mm'; }
+
+    // טעינת תמונת רקע לקנבס
+    function loadBackground(e) {
+        const reader = new FileReader();
+        reader.onload = (event) => { workspace.style.backgroundImage = `url('${event.target.result}')`; };
+        reader.readAsDataURL(e.target.files[0]);
+    }
+
+    function handleInteractions(el, resizer) {
+        el.onmousedown = el.ontouchstart = (e) => {
+            if(e.target === resizer || e.target.contentEditable === 'true') return;
+            const touch = e.touches ? e.touches[0] : e;
+            let shiftX = touch.clientX - el.offsetLeft;
+            let shiftY = touch.clientY - el.offsetTop;
+            
+            const move = (e) => {
+                const t = e.touches ? e.touches[0] : e;
+                el.style.left = (t.clientX - shiftX) + 'px';
+                el.style.top = (t.clientY - shiftY) + 'px';
+            };
+            document.onmousemove = document.ontouchmove = move;
+            document.onmouseup = document.ontouchend = () => { document.onmousemove = document.ontouchmove = null; };
+        };
+
+        resizer.onmousedown = resizer.ontouchstart = (e) => {
+            e.stopPropagation(); e.preventDefault();
+            const target = el.querySelector('img') || el.querySelector('div');
+            const move = (e) => {
+                const t = e.touches ? e.touches[0] : e;
+                target.style.width = (t.clientX - el.getBoundingClientRect().left) + 'px';
+            };
+            document.onmousemove = document.ontouchmove = move;
+            document.onmouseup = document.ontouchend = () => { document.onmousemove = document.ontouchmove = null; };
+        };
+    }
+
+    function createItem(content) {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = content + '<div class="resizer"></div>';
+        workspace.appendChild(div);
+        handleInteractions(div, div.querySelector('.resizer'));
+    }
+
+    document.getElementById('fileInput').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width; canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                const tr = data[0], tg = data[1], tb = data[2];
+                for (let i = 0; i < data.length; i += 4) {
+                    if (Math.abs(data[i]-tr)<40 && Math.abs(data[i+1]-tg)<40 && Math.abs(data[i+2]-tb)<40) data[i+3]=0;
+                }
+                ctx.putImageData(new ImageData(data, canvas.width, canvas.height), 0, 0);
+                createItem(`<img src="${canvas.toDataURL()}" style="width:150px; pointer-events:none;">`);
+            };
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    function addText() { createItem('<div contenteditable="true" style="font-size:24px; min-width:50px;">טקסט חדש</div>'); }
+</script>
+</body>
+</html>
