@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { margin: 0; background: #222; overflow: hidden; touch-action: none; }
+        .controls { position: fixed; top: 0; left: 0; width: 100%; background: white; padding: 10px; z-index: 1000; display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        #canvas {
+            position: absolute; top: 80px; left: 50%;
+            transform: translateX(-50%);
+            width: 297mm; height: 210mm;
+            background-color: white; background-size: cover; background-position: center;
+            box-shadow: 0 0 20px black;
+        }
+
+        .item { position: absolute; cursor: move; padding: 10px; border: 1px dashed transparent; }
+        .item:hover { border: 1px dashed #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <input type="file" id="bgLoader" accept="image/*"> רקע
+    <button onclick="addTextBox()">+ טקסט</button>
+    <input type="file" id="logoLoader" accept="image/*"> + לוגו
+</div>
+
+<div id="canvas"></div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+
+    document.getElementById('bgLoader').onchange = e => canvas.style.backgroundImage = `url(${URL.createObjectURL(e.target.files[0])})`;
+
+    // הוספת לוגו (ללא הגבלה)
+    document.getElementById('logoLoader').onchange = e => createItem(`<img src="${URL.createObjectURL(e.target.files[0])}" style="width:100px; pointer-events:none;">`);
+
+    // הוספת טקסט (ללא הגבלה)
+    function addTextBox() { createItem('<div contenteditable="true" style="font-size:30px;">טקסט חדש</div>'); }
+
+    function createItem(content) {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = content;
+        div.style.left = "20px"; div.style.top = "20px";
+        canvas.appendChild(div);
+        
+        // תמיכה בעכבר ומגע
+        div.onmousedown = (e) => startDrag(e, div);
+        div.ontouchstart = (e) => startDrag(e.touches[0], div);
+    }
+
+    function startDrag(e, div) {
+        if (e.target.contentEditable === "true") return;
+        let shiftX = e.clientX - div.getBoundingClientRect().left;
+        let shiftY = e.clientY - div.getBoundingClientRect().top;
+        
+        function move(e) {
+            let x = (e.clientX || e.touches[0].clientX) - shiftX - canvas.getBoundingClientRect().left;
+            let y = (e.clientY || e.touches[0].clientY) - shiftY - canvas.getBoundingClientRect().top;
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+        }
+        
+        document.onmousemove = move;
+        document.ontouchmove = move;
+        document.onmouseup = document.ontouchend = () => {
+            document.onmousemove = document.ontouchmove = null;
+        };
+    }
+</script>
+</body>
+</html>
