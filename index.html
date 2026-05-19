@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>STIA Ultimate Studio Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Playfair+Display:wght@700&family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { margin: 0; padding: 10px; background: #111; color: white; display: flex; flex-direction: column; align-items: center; }
+        #diploma-canvas { position: relative; width: 90vw; height: 70vh; background-color: #fff; background-size: contain; background-repeat: no-repeat; background-position: center; border: 3px solid #b8860b; overflow: hidden; }
+        
+        .movable { position: absolute; cursor: move; padding: 5px; border: 1px dashed transparent; }
+        .movable:active { border: 1px dashed #fff; }
+        
+        .text-box { min-width: 100px; outline: none; word-wrap: break-word; font-size: 24px; }
+        .logo-img { width: 100px; height: auto; }
+        
+        .controls { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+        button { padding: 8px; cursor: pointer; background: #b8860b; border: none; color: white; border-radius: 4px; }
+        select { padding: 8px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<div id="diploma-canvas"></div>
+
+<div class="controls">
+    <button onclick="document.getElementById('bgLoader').click()">🖼️ רקע</button>
+    <button onclick="addTextBox('gold')">✨ תיבת זהב</button>
+    <button onclick="addTextBox('black')">✒️ תיבת שחור</button>
+    <button onclick="document.getElementById('logoLoader').click()">➕ הוסף תמונה/לוגו</button>
+    <button onclick="downloadAsImage()" style="background: green;">⬇️ הורד תמונה</button>
+</div>
+
+<input type="file" id="bgLoader" accept="image/*" style="display:none">
+<input type="file" id="logoLoader" accept="image/*" style="display:none">
+
+<script>
+    // החלפת רקע
+    document.getElementById('bgLoader').onchange = (e) => {
+        let reader = new FileReader();
+        reader.onload = (event) => document.getElementById('diploma-canvas').style.backgroundImage = "url(" + event.target.result + ")";
+        reader.readAsDataURL(e.target.files[0]);
+    }
+
+    // הוספת תמונה/לוגו
+    document.getElementById('logoLoader').onchange = (e) => {
+        let reader = new FileReader();
+        reader.onload = (event) => {
+            let img = document.createElement('img');
+            img.src = event.target.result;
+            img.className = 'movable logo-img';
+            img.onmousedown = img.ontouchstart = dragElement;
+            document.getElementById('diploma-canvas').appendChild(img);
+        }
+        reader.readAsDataURL(e.target.files[0]);
+    }
+
+    // הוספת תיבת טקסט עם בורר פונטים
+    function addTextBox(color) {
+        let container = document.createElement('div');
+        container.className = 'movable';
+        container.style.top = '100px'; container.style.left = '50px';
+        
+        let select = document.createElement('select');
+        select.innerHTML = `
+            <option value="'Assistant', sans-serif">רגיל</option>
+            <option value="'Playfair Display', serif">רשמי</option>
+            <option value="'Dancing Script', cursive">כתב יד</option>
+        `;
+        select.onchange = (e) => content.style.fontFamily = e.target.value;
+        
+        let content = document.createElement('div');
+        content.className = 'text-box';
+        content.contentEditable = "true";
+        content.innerText = "הקלד טקסט...";
+        content.style.color = color === 'gold' ? '#b8860b' : 'black';
+        content.style.fontFamily = "'Assistant', sans-serif";
+        
+        container.appendChild(select);
+        container.appendChild(content);
+        container.onmousedown = container.ontouchstart = dragElement;
+        document.getElementById('diploma-canvas').appendChild(container);
+    }
+
+    function dragElement(e) {
+        let el = e.target.closest('.movable');
+        let touch = e.touches ? e.touches[0] : e;
+        let shiftX = touch.clientX - el.offsetLeft;
+        let shiftY = touch.clientY - el.offsetTop;
+        
+        function moveAt(e) {
+            let t = e.touches ? e.touches[0] : e;
+            el.style.left = (t.clientX - shiftX) + 'px';
+            el.style.top = (t.clientY - shiftY) + 'px';
+        }
+        document.onmousemove = document.ontouchmove = moveAt;
+        document.onmouseup = document.ontouchend = () => { document.onmousemove = document.ontouchmove = null; };
+    }
+
+    function downloadAsImage() {
+        html2canvas(document.querySelector("#diploma-canvas"), {scale: 2}).then(canvas => {
+            let link = document.createElement('a');
+            link.download = 'certificate.png';
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        });
+    }
+</script>
+</body>
+</html>
