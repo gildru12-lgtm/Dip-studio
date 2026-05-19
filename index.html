@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: sans-serif; background: #ddd; padding: 10px; }
+        .controls { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        #canvas {
+            width: 297mm; height: 210mm;
+            background: white; background-size: cover; background-position: center;
+            position: relative; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            overflow: hidden; margin: auto;
+        }
+
+        /* זהו הקלאס שמאפשר את הגרירה */
+        .draggable-item { 
+            position: absolute; 
+            cursor: move; 
+            padding: 5px; 
+            border: 1px dashed transparent; 
+        }
+        .draggable-item:hover { border: 1px dashed #333; }
+        
+        .font-normal { font-family: Arial; }
+        .font-formal { font-family: 'Times New Roman', serif; font-weight: bold; }
+        .font-hand { font-family: 'cursive'; }
+        .color-gold { color: #D4AF37; text-shadow: 1px 1px 2px #000; }
+        .color-black { color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <input type="file" id="bgLoader" accept="image/*" title="רקע">
+    <select id="textColor"><option value="color-gold">זהב</option><option value="color-black">שחור</option></select>
+    <select id="textFont"><option value="font-normal">כתב רגיל</option><option value="font-formal">כתב רשמי</option><option value="font-hand">כתב יד</option></select>
+    <button onclick="addTextBox()">הוסף טקסט</button>
+    <input type="file" id="logoLoader" accept="image/*" title="לוגו">
+</div>
+
+<div id="canvas"></div>
+
+<script>
+    const canvas = document.getElementById('canvas');
+
+    // רקע
+    document.getElementById('bgLoader').onchange = e => {
+        canvas.style.backgroundImage = `url(${URL.createObjectURL(e.target.files[0])})`;
+    };
+
+    // הוספת לוגו
+    document.getElementById('logoLoader').onchange = e => {
+        const div = document.createElement('div');
+        div.className = 'draggable-item';
+        div.innerHTML = `<img src="${URL.createObjectURL(e.target.files[0])}" style="max-width:150px; display:block;">`;
+        canvas.appendChild(div);
+        enableDrag(div);
+    };
+
+    // הוספת טקסט
+    function addTextBox() {
+        const div = document.createElement('div');
+        div.className = `draggable-item ${document.getElementById('textColor').value} ${document.getElementById('textFont').value}`;
+        div.innerHTML = `
+            <div contenteditable="true" style="font-size:30px; outline:none;">טקסט חדש</div>
+            <input type="range" min="10" max="100" value="30" oninput="this.previousElementSibling.style.fontSize = this.value + 'px'">
+        `;
+        canvas.appendChild(div);
+        enableDrag(div);
+    }
+
+    // פונקציית גרירה יציבה
+    function enableDrag(elmnt) {
+        elmnt.onmousedown = function(e) {
+            // אם לוחצים על הטקסט לעריכה או על הסליידר - לא לגרור
+            if (e.target.getAttribute('contenteditable') === 'true' || e.target.tagName === 'INPUT') return;
+            
+            e.preventDefault();
+            let pos1 = 0, pos2 = 0, pos3 = e.clientX, pos4 = e.clientY;
+            
+            document.onmousemove = function(e) {
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            };
+            document.onmouseup = function() { document.onmousemove = null; };
+        };
+    }
+</script>
+</body>
+</html>
