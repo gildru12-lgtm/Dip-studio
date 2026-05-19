@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>STIA/DTIA - עורך מגע מלא</title>
+    <style>
+        body { margin: 0; background: #222; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; touch-action: none; }
+        .toolbar { position: sticky; top: 0; width: 100%; background: #000; padding: 15px; display: flex; gap: 10px; justify-content: center; z-index: 1000; color: white; flex-wrap: wrap; }
+        
+        #scroll-container { width: 100vw; height: calc(100vh - 80px); overflow: auto; display: flex; justify-content: center; padding: 20px; touch-action: auto; }
+        #workspace { background: white; position: relative; box-shadow: 0 0 20px black; flex-shrink: 0; background-size: cover; background-position: center; }
+        
+        .item { position: absolute; padding: 5px; cursor: move; touch-action: none; border: 1px solid transparent; }
+        .resizer { width: 25px; height: 25px; background: blue; position: absolute; right: 0; bottom: 0; cursor: se-resize; border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <button onclick="setCanvasSize(297, 210)">A4 לרוחב</button>
+    <button onclick="setCanvasSize(210, 297)">A4 לאורך</button>
+    <label style="cursor:pointer; background:#444; padding:5px 10px;">הוסף רקע לקנבס
+        <input type="file" id="bgInput" accept="image/*" style="display:none" onchange="loadBackground(event)">
+    </label>
+    <button onclick="addText()">+ טקסט</button>
+    <button onclick="document.getElementById('fileInput').click()">+ לוגו אטום</button>
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <button onclick="window.print()" style="background:green;">הדפס</button>
+</div>
+
+<div id="scroll-container"><div id="workspace" style="width: 297mm; height: 210mm;"></div></div>
+
+<script>
+    const workspace = document.getElementById('workspace');
+
+    function setCanvasSize(w, h) { workspace.style.width = w + 'mm'; workspace.style.height = h + 'mm'; }
+
+    function loadBackground(e) {
+        const reader = new FileReader();
+        reader.onload = (event) => { workspace.style.backgroundImage = `url('${event.target.result}')`; };
+        reader.readAsDataURL(e.target.files[0]);
+    }
+
+    // הלוגיקה החדשה ללוגו אטום
+    document.getElementById('fileInput').onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width; canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                
+                // שיטה חזקה יותר לחיתוך: נצבע את הרקע החיצוני בשקוף מוחלט
+                // זה משאיר את הלוגו עצמו אטום לגמרי (ערך Alpha 255)
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                const bgR = data[0], bgG = data[1], bgB = data[2]; // דגימת פיקסל פינה
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    // סף סובלנות נמוך כדי לא לגעת בצבעים דומים בתוך הלוגו
+                    if (Math.abs(data[i]-bgR) < 10 && Math.abs(data[i+1]-bgG) < 10 && Math.abs(data[i+2]-bgB) < 10) {
+                        data[i+3] = 0; 
+                    }
+                }
+                ctx.putImageData(imageData, 0, 0);
+                createItem(`<img src="${canvas.toDataURL()}" style="width:150px; pointer-events:none;">`);
+            };
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    function createItem(content) {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = content + '<div class="resizer"></div>';
+        workspace.appendChild(div);
+        
+        // פונקציות גרירה ושינוי גודל (כמו קודם)
+        div.ontouchstart = div.onmousedown = (e) => {
+            if(e.target.classList.contains('resizer')) return;
+            const t = e.touches ? e.touches[0] : e;
+            let sx = t.clientX - div.offsetLeft, sy = t.clientY - div.offsetTop;
+            const move = (e) => {
+                const nt = e.touches ? e.touches[0] : e;
+                div.style.left = (nt.clientX - sx) + 'px'; div.style.top = (nt.clientY - sy) + 'px';
+            };
+            document.onmousemove = document.ontouchmove = move;
+            document.onmouseup = document.ontouchend = () => { document.onmousemove = document.ontouchmove = null; };
+        };
+
+        div.querySelector('.resizer').ontouchstart = div.querySelector('.resizer').onmousedown = (e) => {
+            e.stopPropagation(); e.preventDefault();
+            const img = div.querySelector('img');
+            const move = (e) => {
+                const t = e.touches ? e.touches[0] : e;
+                img.style.width = (t.clientX - div.getBoundingClientRect().left) + 'px';
+            };
+            document.onmousemove = document.ontouchmove = move;
+            document.onmouseup = document.ontouchend = () => { document.onmousemove = document.ontouchmove = null; };
+        };
+    }
+
+    function addText() { createItem('<div contenteditable="true" style="font-size:24px; min-width:50px;">טקסט חדש</div>'); }
+</script>
+</body>
+</html>
